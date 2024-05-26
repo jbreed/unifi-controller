@@ -34,8 +34,8 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Set permissions and make the entrypoint script executable
 RUN chmod +x /usr/local/bin/entrypoint.sh && \
-    chown -R 25000:25000 /app/unifi /config && \
-    chmod -R 777 /app/unifi /config
+    chown -R 25000:25000 /app/unifi /defaults && \
+    chmod -R 777 /app/unifi /defaults
 
 # Set working directory and mount volume
 WORKDIR /app/unifi

@@ -1,7 +1,9 @@
 #!/bin/bash
+echo "Starting..."
 
 mkdir -p /config/{data,logs}
 
+echo "Creating sym links..."
 # Create sym links for data and logs if they don't already exist
 if [ ! -L /app/unifi/data ]; then
     ln -s /config/data /app/unifi/data
@@ -13,6 +15,7 @@ fi
 
 # Update system.properties file
 # update config file with mongo connection details
+echo "Configuring system.properties for MongoDB..."
 if [[ ! -e /config/data/system.properties ]]; then
     if [[ -z "${MONGO_HOST}" ]]; then
         echo "*** No MONGO_HOST set, cannot configure database settings. ***"
@@ -50,6 +53,7 @@ if [[ ! -e /config/data/system.properties ]]; then
     fi
 fi
 
+echo "Generating RSA key..."
 # Generate key if it doesn't exist
 if [[ ! -f /config/data/keystore ]]; then
     keytool -genkey -keyalg RSA -alias unifi -keystore /config/data/keystore \
@@ -59,6 +63,7 @@ fi
 
 # Launch the controller 
 # Launch command found in /usr/lib/unifi/bin/unifi.init
+echo "Launching UniFi..."
 java \
     -Xms"${MEM_STARTUP}M" \
     -Xmx"${MEM_LIMIT}M" \
@@ -75,3 +80,5 @@ java \
     --add-opens java.base/java.io=ALL-UNNAMED \
     --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED \
     -jar /app/unifi/lib/ace.jar start;
+
+echo "Exiting..."
