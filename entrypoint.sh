@@ -1,5 +1,8 @@
 #!/bin/bash
-echo "Starting..."
+# Purpose: Entrypoint to configure system.properties for external mongo and establish symlinks for data and logs
+# Source: The majority of this script was borrowed from LinuxServer.io's Unifi Application Server Docker image repository;
+#         however, needed the ability to run this without elevated permissions.
+echo "UniFi Controller Starting..."
 
 mkdir -p /config/{data,logs}
 
