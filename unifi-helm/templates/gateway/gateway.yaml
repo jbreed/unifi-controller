@@ -1,0 +1,84 @@
+{{- $ports := dict -}}
+{{- range .Values.app.service.ports -}}
+  {{- $portName := .name | replace "-" "_" -}}
+  {{- $_ := set $ports $portName .port -}}
+{{- end -}}
+
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: unifi-gateway
+  namespace: {{ .Release.Namespace }}
+spec:
+  gatewayClassName: {{ .Values.gateway.classname }}
+  {{- if .Values.gateway.ipaddress }}
+  addresses:
+    - value: {{ .Values.gateway.ipaddress }}
+  {{- end }}
+  listeners:
+  - name: http-management
+    port: {{ .Values.gateway.controller.http_port }}
+    protocol: HTTP
+    hostname: {{ .Values.gateway.controller.host }}
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https-management
+    port: {{ .Values.gateway.controller.https_port }}
+    protocol: TLS 
+    hostname: {{ .Values.gateway.controller.host }}
+    tls:
+    {{- if .Values.gateway.controller.tlsSecretName }}
+      mode: Terminate
+      certificateRefs:
+        - kind: Secret
+          name: {{ .Values.gateway.controller.tlsSecretName }}
+    {{- else }}
+      mode: Passthrough
+    {{- end }}
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: http-portal
+    port: {{ .Values.gateway.portal.http_port }}
+    protocol: HTTP
+    hostname: {{ .Values.gateway.portal.host }}
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https-portal
+    port: {{ .Values.gateway.portal.https_port }}
+    protocol: TLS
+    hostname: {{ .Values.gateway.portal.host }}
+    tls:
+    {{- if .Values.gateway.portal.tlsSecretName }}
+      mode: Terminate
+      certificateRefs:
+        - kind: Secret
+          name: {{ .Values.gateway.portal.tlsSecretName }}
+    {{- else }}
+      mode: Passthrough
+    {{- end }}
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-stun
+    port: {{ $ports.stun }}
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-inform
+    port: {{ $ports.inform }}
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-discovery
+    port: {{ $ports.discovery }}
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+{{- end }}

@@ -1,0 +1,83 @@
+replicaCount: 1
+
+gateway:
+  enabled: false
+  ipaddress: null
+  classname: cilium
+  controller:
+    host: controller.example.com
+    tlsSecretName: null
+    http_port: 8080
+    https_port: 8443
+  portal:
+    host: portal.example.com
+    tlsSecretName: null
+    http_port: 80
+    https_port: 443
+
+db:
+  repository: mongo
+  tag: latest
+  pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 27017
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    storageClass: local-path
+    size: 10Gi
+  env:
+    MONGO_USER: unifi
+    MONGO_PASS: CHANGEME
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 2001
+
+app:
+  repository: docker.io/jbreed/unifi-controller
+  tag: latest
+  pullPolicy: Always
+  service:
+    type: ClusterIP
+    ports:
+      - name: web-portal
+        port: 8443
+        targetPort: 8443
+      - name: stun
+        protocol: UDP
+        port: 3478
+        targetPort: 3478
+      - name: inform
+        port: 10001
+        protocol: UDP
+        targetPort: 10001
+      - name: dev-comm
+        port: 8080
+        targetPort: 8080
+      - name: discovery
+        port: 1900
+        protocol: UDP
+        targetPort: 1900
+      - name: guest-https
+        port: 443
+        targetPort: 443
+      - name: guest-http
+        port: 80
+        targetPort: 80
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    storageClass: local-path
+    size: 10Gi
+  env:
+    TZ: America/Denver
+    MONGO_HOST: unifi-db
+    MONGO_PORT: "27017"
+    MONGO_DBNAME: unifi
+    MONGO_AUTHSOURCE: admin
+    MEM_LIMIT: "1024"
+    MEM_STARTUP: "1024"
+  securityContext:
+    fsGroup: 1000
+    runAsUser: 2000

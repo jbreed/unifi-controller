@@ -1,0 +1,26 @@
+{{- $ports := dict -}}
+{{- range .Values.app.service.ports -}}
+  {{- $portName := .name | replace "-" "_" -}}
+  {{- $_ := set $ports $portName .port -}}
+{{- end -}}
+
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: UDPRoute
+metadata:
+  name: unifi-udproute
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+  - name: unifi-gateway
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.stun }}
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.inform }}
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.discovery }}
+{{- end }}

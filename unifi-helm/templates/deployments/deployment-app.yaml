@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unifi-controller-app
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: unifi-controller-app
+  template:
+    metadata:
+      labels:
+        app: unifi-controller-app
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.app.securityContext.fsGroup }}
+        runAsUser: {{ .Values.app.securityContext.runAsUser }}
+      containers:
+        - name: app
+          image: "{{ .Values.app.repository }}:{{ .Values.app.tag }}"
+          imagePullPolicy: {{ .Values.app.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: MONGO_USER
+              valueFrom:
+                secretKeyRef:
+                  name: unifi-mongo-secret
+                  key: MONGO_USER
+            - name: MONGO_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: unifi-mongo-secret
+                  key: MONGO_PASS
+            {{- if .Values.gateway.ipaddress }}
+            - name: SYSTEM_IP
+              value: {{ .Values.gateway.ipaddress }}
+            {{- end }}
+            {{- range $key, $value := .Values.app.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: app-storage
+              mountPath: /config
+          ports:
+            {{- range .Values.app.service.ports }}
+            - name: {{ .name | trunc 15 }}
+              containerPort: {{ .targetPort }}
+              protocol: {{ .protocol | default "TCP" }}
+            {{- end }}
+      volumes:
+        - name: app-storage
+          persistentVolumeClaim:
+            claimName: app-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - {{ .Values.app.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.app.persistence.size }}
+  storageClassName: {{ .Values.app.persistence.storageClass }}

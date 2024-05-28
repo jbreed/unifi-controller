@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM ubuntu:22.04
 
 LABEL maintainer="jbreed"
 
@@ -8,15 +8,17 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm
 ENV PATH=$JAVA_HOME/bin:$PATH
 
 # Install necessary packages and Java
-RUN apk update && apk add --no-cache \
-    openjdk17-jre \
+RUN apt-get update -y && apt-get install -y \
+    openjdk-17-jre \
     jsvc \
     logrotate \
     unzip \
     curl \
     bash \
     netcat-openbsd \
-    openssl
+    openssl \
+    libc6 \
+    systemd
 
 # Install Unifi
 RUN echo "**** install unifi ****" && \

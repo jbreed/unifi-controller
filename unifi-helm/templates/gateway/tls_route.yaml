@@ -1,0 +1,41 @@
+{{- $ports := dict -}}
+{{- range .Values.app.service.ports -}}
+  {{- $portName := .name | replace "-" "_" -}}
+  {{- $_ := set $ports $portName .port -}}
+{{- end -}}
+
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: unifi-tlsroute-{{ $ports.web_portal }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+  - name: unifi-gateway
+    namespace: {{ .Release.Namespace }}
+    sectionName: https-management
+  hostnames: 
+  - {{ .Values.gateway.controller.host }}
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.web_portal }}
+---
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: unifi-tlsroute-{{ $ports.guest_https }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+  - name: unifi-gateway
+    namespace: {{ .Release.Namespace }}
+    sectionName: https-portal
+  hostnames:
+  - {{ .Values.gateway.portal.host }}
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.guest_https }}
+{{- end }}

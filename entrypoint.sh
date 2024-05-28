@@ -52,6 +52,9 @@ if [[ ! -e /config/data/system.properties ]]; then
         else
             sed -i "s/~MONGO_AUTHSOURCE~/\&authSource=${MONGO_AUTHSOURCE}/" /defaults/system.properties
         fi
+	if [[ -n "${SYSTEM_IP}" ]]; then
+            echo "system_ip=${SYSTEM_IP}" >> /defaults/system.properties
+        fi
         cp /defaults/system.properties /config/data
     fi
 fi

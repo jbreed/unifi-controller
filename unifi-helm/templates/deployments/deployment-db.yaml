@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: unifi-db
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: unifi-db
+  template:
+    metadata:
+      labels:
+        app: unifi-db
+    spec:
+      securityContext:
+        fsGroup: {{ .Values.db.securityContext.fsGroup }}
+        runAsUser: {{ .Values.db.securityContext.runAsUser }}
+      containers:
+        - name: db
+          image: "{{ .Values.db.repository }}:{{ .Values.db.tag }}"
+          imagePullPolicy: {{ .Values.db.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: unifi-mongo-secret
+                  key: MONGO_USER
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: unifi-mongo-secret
+                  key: MONGO_PASS
+          volumeMounts:
+            - name: db-storage
+              mountPath: /data/db
+              readOnly: false
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: db-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: db-pvc
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - {{ .Values.db.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.db.persistence.size }}
+  storageClassName: {{ .Values.db.persistence.storageClass }}
