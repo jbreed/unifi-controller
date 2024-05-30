@@ -59,12 +59,35 @@ if [[ ! -e /config/data/system.properties ]]; then
     fi
 fi
 
-echo "Generating RSA key..."
-# Generate key if it doesn't exist
-if [[ ! -f /config/data/keystore ]]; then
-    keytool -genkey -keyalg RSA -alias unifi -keystore /config/data/keystore \
-    -storepass aircontrolenterprise -keypass aircontrolenterprise -validity 3650 \
-    -keysize 4096 -dname "cn=unifi" -ext san=dns:unifi
+echo "Initializing keystore..."
+
+# Check if keystore.jks exists in the temporary directory
+if [[ -f /tmp/keystore/keystore.jks ]]; then
+    echo "Found keystore.jks in /tmp/keystore. Moving to /config/data/keystore..."
+    # Move keystore.jks to /config/data
+    # UniFi expects an alias of 'unifi' with the password 'aircontrolenterprise'
+    # cert manager is expected to add jks alias support in v1.15.0
+    mv /tmp/keystore/keystore.jks /config/data/keystore
+elif [[ -f /tmp/tls/tls.crt && -f /tmp/tls/tls.key ]]; then
+    echo "Found tls.crt and tls.key in /tmp/tls. Creating keystore..."
+    
+    # Create a PKCS12 keystore from the TLS cert and key
+    openssl pkcs12 -export -in /tmp/tls/tls.crt -inkey /tmp/tls/tls.key -out /tmp/keystore.p12 -name unifi -passout pass:aircontrolenterprise
+
+    # Import the PKCS12 keystore into a new JKS keystore
+    rm -rf /config/data/keystore
+    keytool -importkeystore -srckeystore /tmp/keystore.p12 -srcstoretype PKCS12 -srcstorepass aircontrolenterprise -srcalias unifi -destkeystore /config/data/keystore -deststorepass aircontrolenterprise -destkeypass aircontrolenterprise
+
+    echo "Keystore created and moved to /config/data/keystore"
+else
+    echo "keystore.jks or TLS cert and key not found. Generating self-signed certificate..."
+    # Generate key if it doesn't exist
+    if [[ ! -f /config/data/keystore ]]; then
+        echo "Generating RSA key..."
+        keytool -genkey -keyalg RSA -alias unifi -keystore /config/data/keystore \
+        -storepass aircontrolenterprise -keypass aircontrolenterprise -validity 3650 \
+        -keysize 4096 -dname "cn=unifi" -ext san=dns:unifi
+    fi
 fi
 
 # Launch the controller 

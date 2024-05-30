@@ -5,41 +5,58 @@
 {{- end -}}
 
 {{- if .Values.gateway.enabled }}
-  {{- if empty .Values.gateway.controller.tlsSecretName }}
 apiVersion: gateway.networking.k8s.io/v1alpha3
-kind: TLSRoute
+kind: HTTPRoute
 metadata:
-  name: unifi-tlsroute-{{ $ports.web_portal }}
+  name: unifi-httproute-{{ $ports.dev_comm }}
   namespace: {{ .Release.Namespace }}
 spec:
   parentRefs:
   - name: unifi-gateway
     namespace: {{ .Release.Namespace }}
-    sectionName: https-management
-  hostnames: 
+    sectionName: http-management
+  hostnames:
   - {{ .Values.gateway.controller.host }}
   rules:
   - backendRefs:
     - name: unifi-controller-app
-      port: {{ $ports.web_portal }}
+      port: {{ $ports.dev_comm }}
 ---
-  {{- end }}
-  {{- if empty .Values.gateway.portal.tlsSecretName }}
+  {{- if .Values.gateway.controller.tlsSecretName }}
 apiVersion: gateway.networking.k8s.io/v1alpha3
-kind: TLSRoute
+kind: HTTPRoute
 metadata:
-  name: unifi-tlsroute-{{ $ports.guest_https }}
-  namespace: {{ .Release.Namespace }}
+  name: unifi-httproute-controller
+  namespace: unifi
 spec:
+  hostnames:
+  - {{ .Values.gateway.controller.host }}
   parentRefs:
   - name: unifi-gateway
-    namespace: {{ .Release.Namespace }}
-    sectionName: https-portal
+    sectionName: https-management
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: {{ $ports.web_portal }}
+      kind: Service
+---
+  {{- end }}
+  {{- if .Values.gateway.portal.tlsSecretName }}
+apiVersion: gateway.networking.k8s.io/v1alpha3
+kind: HTTPRoute
+metadata:
+  name: unifi-httproute-portal
+  namespace: unifi
+spec:
   hostnames:
   - {{ .Values.gateway.portal.host }}
+  parentRefs:
+  - name: unifi-gateway
+    sectionName: https-portal
   rules:
   - backendRefs:
     - name: unifi-controller-app
       port: {{ $ports.guest_https }}
+      kind: Service
   {{- end }}
 {{- end }}

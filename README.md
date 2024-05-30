@@ -2,24 +2,22 @@
 UniFi Controller that runs as non-root user. Requires an external MongoDB service, which the Helm chart deploys with the controller.
 
 ## Helm Chart Deployment
-Review and modify the values.yaml file as needed
-<br>
-Example: <br>
-helm install unifi-controller unifi-helm/ -n unifi --set gateway.ipaddress=10.0.0.100 --set gateway.enabled=true --set db.env.MONGO_PASS=MYPASSWORD --set gateway.controller.host=unifi.example.com --set gateway.portal.host=portal.example.com
-- Sets the IP Address for the Gateway to use, which also sets UniFi configuration to advertise this
-- Sets the controller DNS for routing through the gateway to the management interface (tcp/8443)
-- Sets the portal DNS for routing through the gateway to the portal interface (tcp/8843)
-<br>
+Review and modify the values.yaml file as needed. Still working on templating the Kubernetes Gateway manifest files.
 
-## Status (27May2024)
+Note: Recommend installing the Gateway CRDs with TLSRoute experimental CRD as well. This will allow TLS passthrough since UniFi is unable to disable HTTPS redirection. Once the Gateway TLS Backend Policy is implemented and we can leverage the reencrypt for the backend, TLS passthrough appears to be the best option. If using the Ingress configurations, you will also need to see if your ingress supports forwarding raw UDP and TCP ports (NGINX Ingress supports this, but its set on a cluster-wide configuration). The Gateway spec supports TCP and UDP via UDPRoute and TCPRoute.
 
-- I have not verified the UDPRoute's are functional
-- The HTTP/HTTPs routes are functional in my cluster and all my nodes showed up. During debugging the TLSRoute and HTTPRoute, I set the inform on each node via ssh.
-- Moved to the Ubuntu base image due to running into library dependencies needed for the inform java class (systemd, etc). Will likely look at using a hardened base vs the default ubuntu base image.
-- To use the Gateway with TLSRoute, HTTPRoute, and UDPRoute: requires Kubernetes experimental CRDs for the Gateway API specs
-- Have not yet verified the Guest Portal; however, seperated the host to eventually try having the controller and portal use default tcp/443. 
-- Have not yet generated TLS certs and verified the Gateway terminates and still functions.
-<br>
+Cilium docs w/ Gateway API Support: https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/
+
+Once deployed, I have my current test gateway manifest files checked in for reference. For the TLS certificate, I am using cert-manager with reflector to replicate the TLS certificate into the unifi namespace. Cert-manager in the next release will support JKS alias, in which will make things much cleaner.
+
+Example:
+
+helm install unifi-controller unifi-helm/ -n unifi --set gateway.ipaddress=LB_IP --set gateway.controller.tlsSecretName=controller-example-com-tls --set db.env.MONGO_PASS=CHANGEME
+
+## Unknowns w/ Gateway API
+- UDPRoute operational. Installed the routes, but have not verified if the UDP portion is functioning as intended.
+- Guest Portal. I have not yet verified this functions as intended.
+
 
 ## Acknowledgements
 This project includes code from [linuxserver.io's docker-unifi-network-application](https://github.com/linuxserver/docker-unifi-network-application/tree/main), which is licensed under the GNU General Public License, Version 3 (GPLv3).

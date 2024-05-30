@@ -43,6 +43,10 @@ spec:
             - name: SYSTEM_IP
               value: {{ .Values.gateway.ipaddress }}
             {{- end }}
+            {{- if .Values.gateway.controller.keystoreSecretName }}
+            - name: KEYSTORE_PASS
+              value: {{ .Values.gateway.controller.keystorePass | quote }}
+            {{- end }}
             {{- range $key, $value := .Values.app.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
@@ -50,6 +54,14 @@ spec:
           volumeMounts:
             - name: app-storage
               mountPath: /config
+            {{- if .Values.gateway.controller.keystoreSecretName }}
+            - name: keystore
+              mountPath: /tmp/keystore
+            {{- end }}
+            {{- if .Values.gateway.controller.tlsSecretName }}
+            - name: tls
+              mountPath: /tmp/tls
+            {{- end }}
           ports:
             {{- range .Values.app.service.ports }}
             - name: {{ .name | trunc 15 }}
@@ -60,6 +72,26 @@ spec:
         - name: app-storage
           persistentVolumeClaim:
             claimName: app-pvc
+        {{- if .Values.gateway.controller.keystoreSecretName }}
+        - name: keystore
+          secret:
+            secretName: {{ .Values.gateway.controller.keystoreSecretName }}
+            defaultMode: 400
+            items:
+              - key: keystore.jks
+                path: keystore.jks
+        {{- end }}
+        {{- if .Values.gateway.controller.tlsSecretName }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.gateway.controller.tlsSecretName }}
+            defaultMode: 400
+            items:
+              - key: tls.crt
+                path: tls.crt
+              - key: tls.key
+                path: tls.key
+        {{- end }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

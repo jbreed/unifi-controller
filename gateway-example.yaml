@@ -1,0 +1,156 @@
+########### GATEWAY ############
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: unifi-gateway
+  namespace: unifi
+spec:
+  gatewayClassName: cilium
+  addresses:
+    - value: 192.168.0.100
+  listeners:
+  - name: http-management
+    port: 8080
+    protocol: HTTP
+    hostname: controller.example.com
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https-management
+    port: 8443
+    protocol: TLS
+    hostname: unifi.example.com
+    tls:
+      mode: Passthrough
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: http-portal
+    port: 80
+    protocol: HTTP
+    hostname: portal.example.com
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: https-portal
+    port: 443
+    protocol: HTTPS
+    hostname: portal.example.com
+    tls:
+      mode: Terminate
+      certificateRefs:
+        - kind: Secret
+          name: portal-example-com-tls
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-stun
+    port: 3478
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-inform
+    port: 10001
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+  - name: udp-discovery
+    port: 1900
+    protocol: UDP
+    allowedRoutes:
+      namespaces:
+        from: Same
+---
+########### UDP CONTROLLER ROUTES ############
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: UDPRoute
+metadata:
+  name: unifi-udproute
+  namespace: unifi
+spec:
+  parentRefs:
+  - name: unifi-gateway
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 3478
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 10001
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 1900
+---
+########### CONTROLLER ROUTES ############
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: unifi-tlsroute-8443
+  namespace: unifi
+spec:
+  parentRefs:
+  - name: unifi-gateway
+    namespace: unifi
+    sectionName: https-management
+  hostnames:
+  - unifi.example.com
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 8443
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: unifi-httproute-8080
+  namespace: unifi
+spec:
+  parentRefs:
+  - name: unifi-gateway
+    namespace: unifi
+    sectionName: http-management
+  hostnames:
+  - unifi.example.com
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 8080
+---
+########### PORTAL ROUTES ############
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: portal-httproute-443
+  namespace: unifi
+spec:
+  parentRefs:
+  - name: unifi-gateway
+    namespace: unifi
+    sectionName: https-portal
+  hostnames:
+  - portal.example.com
+  rules:
+  - backendRefs:
+    - name: unifi-controller-app
+      port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: HTTPRoute
+metadata:
+  name: portal-redirect-http-to-https
+  namespace: unifi
+spec:
+  parentRefs:
+    - name: unifi-gateway
+      namespace: unifi
+      sectionName: http-portal
+  hostnames:
+  - portal.example.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

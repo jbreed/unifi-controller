@@ -5,13 +5,20 @@ gateway:
   ipaddress: null
   classname: cilium
   controller:
-    host: controller.example.com
+    host: unifi.example.com
+    # This will create a keystore upon startup; however, if the cert is updated it will not automatically reflect inside the container
     tlsSecretName: null
+    # This will copy the keystore where UniFi expects it to be; however, keystores for UniFi need to have the alias 'unifi' and the password 'aircontrolenterprise'
+    # Note: Cert-manger is expected to support jks keystores with an alias in v1.15 (release June2024)
+    keystoreSecretName: null
+    keyStorePass: null
     http_port: 8080
     https_port: 8443
   portal:
     host: portal.example.com
     tlsSecretName: null
+    keystoreSecretName: null
+    keyStorePass: null
     http_port: 80
     https_port: 443
 
