@@ -4,9 +4,12 @@
 #         however, needed the ability to run this without elevated permissions.
 echo "UniFi Controller Starting..."
 
-mkdir -p /config/{data,logs}
+# Dynamically adjust permissions based on the current user and group
+chown -R $(id -u):$(id -g) /app/unifi /defaults /config
+chmod -R 700 /app/unifi /defaults /config
 
 echo "Creating sym links..."
+mkdir -p /config/{data,logs}
 # Create sym links for data and logs if they don't already exist
 if [ ! -L /app/unifi/data ]; then
     ln -s /config/data /app/unifi/data
@@ -52,7 +55,7 @@ if [[ ! -e /config/data/system.properties ]]; then
         else
             sed -i "s/~MONGO_AUTHSOURCE~/\&authSource=${MONGO_AUTHSOURCE}/" /defaults/system.properties
         fi
-	if [[ -n "${SYSTEM_IP}" ]]; then
+        if [[ -n "${SYSTEM_IP}" ]]; then
             echo "system_ip=${SYSTEM_IP}" >> /defaults/system.properties
         fi
         cp /defaults/system.properties /config/data
@@ -70,12 +73,17 @@ if [[ -f /tmp/keystore/keystore.jks ]]; then
     mv /tmp/keystore/keystore.jks /config/data/keystore
 elif [[ -f /tmp/tls/tls.crt && -f /tmp/tls/tls.key ]]; then
     echo "Found tls.crt and tls.key in /tmp/tls. Creating keystore..."
-    
-    # Create a PKCS12 keystore from the TLS cert and key
-    openssl pkcs12 -export -in /tmp/tls/tls.crt -inkey /tmp/tls/tls.key -out /tmp/keystore.p12 -name unifi -passout pass:aircontrolenterprise
+
+    # Extract only the server certificate from the tls.crt file
+    openssl x509 -in /tmp/tls/tls.crt -out /tmp/server.crt
+
+    # Create a PKCS12 keystore from the server cert and key
+    openssl pkcs12 -export -in /tmp/server.crt -inkey /tmp/tls/tls.key -out /tmp/keystore.p12 -name unifi -passout pass:aircontrolenterprise
+
+    # Remove existing keystore if it exists
+    rm -rf /config/data/keystore
 
     # Import the PKCS12 keystore into a new JKS keystore
-    rm -rf /config/data/keystore
     keytool -importkeystore -srckeystore /tmp/keystore.p12 -srcstoretype PKCS12 -srcstorepass aircontrolenterprise -srcalias unifi -destkeystore /config/data/keystore -deststorepass aircontrolenterprise -destkeypass aircontrolenterprise
 
     echo "Keystore created and moved to /config/data/keystore"
@@ -108,6 +116,14 @@ java \
     --add-opens java.base/sun.security.util=ALL-UNNAMED \
     --add-opens java.base/java.io=ALL-UNNAMED \
     --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED \
+    -cp "/app/unifi/lib/*" \
+    -Djavax.net.ssl.keyStore=/config/data/keystore \
+    -Djavax.net.ssl.keyStorePassword=aircontrolenterprise \
+    -Djavax.net.ssl.trustStore=/usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts \
+    -Djavax.net.ssl.trustStorePassword=changeit \
+    -Dhttps.protocols=TLSv1.2,TLSv1.3 \
+    -Djdk.tls.client.protocols=TLSv1.2,TLSv1.3 \
+    -Djdk.tls.server.cipherSuites=TLS_AES_256_GCM_SHA384,TLS_AES_128_GCM_SHA256,TLS_CHACHA20_POLY1305_SHA256,ECDHE-RSA-AES256-GCM-SHA384,ECDHE-RSA-AES128-GCM-SHA256 \
     -jar /app/unifi/lib/ace.jar start;
 
 echo "Exiting..."
