@@ -6,7 +6,7 @@ echo "UniFi Controller Starting..."
 
 # Dynamically adjust permissions based on the current user and group
 chown -R $(id -u):$(id -g) /app/unifi /defaults /config
-chmod -R 700 /app/unifi /defaults /config
+chmod -R 755 /app/unifi /defaults /config
 
 echo "Creating sym links..."
 mkdir -p /config/{data,logs}
@@ -117,6 +117,7 @@ java \
     --add-opens java.base/java.io=ALL-UNNAMED \
     --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED \
     -cp "/app/unifi/lib/*" \
+    -Xlog:gc:logs/gc.log:time:filecount=2,filesize=5M \
     -Djavax.net.ssl.keyStore=/config/data/keystore \
     -Djavax.net.ssl.keyStorePassword=aircontrolenterprise \
     -Djavax.net.ssl.trustStore=/usr/lib/jvm/java-17-openjdk-amd64/lib/security/cacerts \
