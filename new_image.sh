@@ -28,4 +28,13 @@ rm -rf deb_file/etc deb_file/usr deb_file/lib
 sed -i "s/LABEL version=\".*\"/LABEL version=\"$unifi_version\"/" Dockerfile
 sed -i "s/unifi-.*\.tgz/unifi-${unifi_version}.tgz/" Dockerfile
 
+# Build the Docker image
+docker build -t docker.io/jbreed/unifi-controller:$unifi_version .
+docker tag docker.io/jbreed/unifi-controller:$unifi_version docker.io/jbreed/unifi-controller:latest
+docker login -u jbreed
+
+# Upload new image to Docker Hub
+docker push docker.io/jbreed/unifi-controller:$unifi_version
+docker push docker.io/jbreed/unifi-controller:latest
+
 echo "Finished."

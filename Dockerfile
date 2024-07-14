@@ -1,7 +1,7 @@
 FROM ubuntu:24.04
 
 LABEL maintainer="jbreed"
-LABEL version="8.3.28"
+LABEL version="8.3.32"
 
 # Environment settings
 ENV UNIFI_BRANCH="stable"
@@ -30,9 +30,9 @@ RUN apt-get update -y && apt-get install -y \
 #     mv /app/UniFi /app/unifi
 
 # Install Unifi
-COPY unifi-8.3.28.tgz /tmp/
+COPY unifi-8.3.32.tgz /tmp/
 RUN mkdir -p /app/unifi && \
-    tar -xzvf /tmp/unifi-8.3.28.tgz -C /app/unifi --strip-components=1
+    tar -xzvf /tmp/unifi-8.3.32.tgz -C /app/unifi --strip-components=1
 
 #### VULNERABILITY FIXES ####
 #RUN curl -L -o /tmp/dom4j-2.1.4.jar https://repo1.maven.org/maven2/org/dom4j/dom4j/2.1.4/dom4j-2.1.4.jar && \
