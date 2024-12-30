@@ -1,40 +1,47 @@
 #!/bin/bash
 
-# Download the .deb file from the Unifi UI and place it in the deb_file subpath.
-#    Then run this script to generate the .tgz file to be used in the Dockerfile.
+# This script packages a UniFi .deb into a .tgz file and builds/pushes a container image.
+# The script automatically detects the version (X.Y.Z) from the .deb filename.
 
-# Check the number of arguments
-if [ -z "$1" ]; then
-    echo "Please provide the UniFi version as an argument (e.g., 8.2.93, 8.3.20, etc)."
+# 1) Locate the .deb file in deb_file/
+deb_path=$(ls deb_file/*.deb 2>/dev/null)
+if [[ -z "$deb_path" ]]; then
+    echo "No .deb file found in 'deb_file/' directory. Aborting."
     exit 1
 fi
 
-# Check if the UniFi version is in the correct format
-version_regex="^[0-9]+\.[0-9]+\.[0-9]+$"
-if [[ ! $1 =~ $version_regex ]]; then
-    echo "Invalid UniFi version format. Please use the format X.Y.Z (e.g., 8.2.93, 8.3.20, etc)."
+# 2) Extract the version (e.g. "9.0.106") from the filename
+#    We assume the .deb filename contains something like: "b0fe-debian-9.0.106-..."
+filename=$(basename "$deb_path")
+unifi_version=$(echo "$filename" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+if [[ -z "$unifi_version" ]]; then
+    echo "Could not detect a version (X.Y.Z) pattern in: $filename"
     exit 1
 fi
-unifi_version=$1
 
-# Package the .tgz file
-pushd deb_file
+echo "Detected UniFi version: $unifi_version"
+
+# 3) Package the .tgz file
+pushd deb_file >/dev/null
 dpkg-deb -x *.deb .
 tar -czvf "../unifi-${unifi_version}.tgz" -C ./usr/lib/unifi .
-popd
+popd >/dev/null
+
+# 4) Clean up extracted dirs
 rm -rf deb_file/etc deb_file/usr deb_file/lib
 
-# Update Dockerfile
+# 5) Update Dockerfile
 sed -i "s/LABEL version=\".*\"/LABEL version=\"$unifi_version\"/" Dockerfile
 sed -i "s/unifi-.*\.tgz/unifi-${unifi_version}.tgz/" Dockerfile
 
-# Build the Docker image
-podman build -t docker.io/jbreed/unifi-controller:$unifi_version .
-podman tag docker.io/jbreed/unifi-controller:$unifi_version docker.io/jbreed/unifi-controller:latest
+# 6) Build the Docker image
+podman build -t "docker.io/jbreed/unifi-controller:${unifi_version}" .
+podman tag "docker.io/jbreed/unifi-controller:${unifi_version}" "docker.io/jbreed/unifi-controller:latest"
+
+# 7) Authenticate and push
 podman login -u jbreed
+podman push "docker.io/jbreed/unifi-controller:${unifi_version}"
+podman push "docker.io/jbreed/unifi-controller:latest"
 
-# Upload new image to Docker Hub
-podman push docker.io/jbreed/unifi-controller:$unifi_version
-podman push docker.io/jbreed/unifi-controller:latest
+echo "Finished building and pushing unifi-controller:${unifi_version} (and latest)."
 
-echo "Finished."
